@@ -1,6 +1,10 @@
 from rest_framework import generics
 from user_auth_app.models import UserProfile
-from .serializers import UserProfileSerializer
+from .serializers import UserProfileSerializer, RegistrationSerializer
+from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny
+from rest_framework.authtoken.models import Token
+from rest_framework.response import Response
 
 class UserProfileList(generics.ListCreateAPIView):
     queryset = UserProfile.objects.all()
@@ -9,3 +13,25 @@ class UserProfileList(generics.ListCreateAPIView):
 class UserProfileDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = UserProfile.objects.all()
     serializer_class = UserProfileSerializer
+
+class RegistrationView(APIView):
+    permission_classes = [AllowAny] # we need to allow any because default in settings.py is IsAuthenticated
+                                    # but we're not even registered yet
+
+    def post(self, request):
+        serializer = RegistrationSerializer(data=request.data)
+
+        date = {}
+        if serializer.is_valid():
+            saved_account = serializer.save()
+            token, created = Token.objects.get_or_create(user=saved_account) #get_or_create just in case it already exists
+            data = {
+                'token': token.key,
+                'username': saved_account.username,
+                'email': saved_account.email
+            }
+        else:
+            data=serializer.errors
+
+        return Response(data)
+
